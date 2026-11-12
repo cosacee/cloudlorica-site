@@ -6,21 +6,22 @@
 
 export const site = {
   // --- identity -------------------------------------------------------
-  name: 'PLACEHOLDER NAME',
+  name: 'Corran Chatfield',
   handle: 'cosacee',
-  role: 'Infrastructure & Automation Engineer',
+  role: 'Infrastructure & Operations Specialist',
   // One sentence. This is the single most-read line on the site.
   headline: 'I build and operate self-hosted infrastructure — virtualisation, containers, network edge, and the automation that keeps it running.',
 
   // --- availability ---------------------------------------------------
-  location: 'United Kingdom',
+  location: 'Cramlington, United Kingdom',
   status: 'Open to infrastructure / platform / SRE roles',
 
   // --- links ----------------------------------------------------------
-  email: 'hello@cloudlorica.uk',
+  email: 'corran.chatfield@outlook.com',
   github: 'https://github.com/cosacee',
-  linkedin: '', // add when ready
+  linkedin: 'https://www.linkedin.com/in/corranchatfield',
   cv: '/cv.pdf', // drop the PDF in public/ to activate
+
 
   // --- summary stats shown in the hero --------------------------------
   stats: [

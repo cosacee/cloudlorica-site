@@ -336,6 +336,23 @@ a.card:hover {
 .site-footer a { color: var(--fg-muted); border-bottom: 0; }
 .site-footer a:hover { color: var(--accent); }
 
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--fg-muted);
+  border-bottom: 0;
+}
+
+.icon-link:hover { color: var(--accent); }
+.icon-link svg { flex: 0 0 auto; display: block; }
+
 .placeholder-note {
   font-family: var(--mono);
   font-size: 0.72rem;

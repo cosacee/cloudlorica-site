@@ -1,0 +1,66 @@
+---
+import '../styles/global.css';
+import { site, nav } from '../data/site.js';
+
+const {
+  title = site.name,
+  description = site.headline,
+} = Astro.props;
+
+const pageTitle = title === site.name ? `${site.name} — ${site.role}` : `${title} — ${site.name}`;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://cloudlorica.uk');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical.href} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b0d10" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical.href} />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="/">{site.name.split(' ')[0].toLowerCase()}<span class="dot">.</span>cloudlorica</a>
+        <nav class="site-nav" aria-label="Primary">
+          {nav.map((item) => (
+            <a href={item.href}>{item.label}</a>
+          ))}
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>
+          &copy; {new Date().getFullYear()} {site.name}. Built with Astro, deployed on Cloudflare Pages.
+        </div>
+        <div>
+          <a href={site.github} rel="me noopener">GitHub</a>
+          &nbsp;·&nbsp;
+          <a href={`mailto:${site.email}`}>Email</a>
+        </div>
+      </div>
+      <div class="wrap" style="margin-top:1rem">
+        <span class="placeholder-note">Placeholder build — copy pending review</span>
+      </div>
+    </footer>
+  </body>
+</html>

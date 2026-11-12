@@ -1,0 +1,165 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site } from '../data/site.js';
+import { caseStudies } from '../data/caseStudies.js';
+
+const stack = [
+  {
+    group: 'Virtualisation & containers',
+    items: ['Proxmox VE', 'LXC', 'Docker', 'Docker Compose', 'Dockhand', 'Portainer'],
+  },
+  {
+    group: 'Operating systems',
+    items: ['Debian / Ubuntu', 'Windows Server', 'Windows 11', 'systemd', 'Samba'],
+  },
+  {
+    group: 'Networking',
+    items: ['Cloudflare Tunnel', 'Zero Trust', 'DNS design', 'Traefik', 'WireGuard', 'VLAN', 'Packet analysis'],
+  },
+  {
+    group: 'Storage & data',
+    items: ['ZFS', 'CIFS / SMB', 'SQLite', 'MariaDB / MySQL', 'PostgreSQL', 'Backup validation'],
+  },
+  {
+    group: 'Automation',
+    items: ['Python', 'Bash', 'PowerShell', 'REST / RPC APIs', 'Scheduled task design'],
+  },
+  {
+    group: 'Observability',
+    items: ['Netdata', 'Uptime Kuma', 'hardware telemetry', 'log analysis'],
+  },
+];
+---
+
+<Layout>
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">{site.role}</p>
+      <h1>{site.headline}</h1>
+      <p class="lede">
+        I run a self-hosted estate of {site.stats[1].value} services across
+        virtualisation, containers and a hosted edge — and I document the failures
+        as carefully as the successes. Below are the problems that taught me the most.
+      </p>
+      <div class="hero-meta">
+        <span>{site.location}</span>
+        <span>{site.status}</span>
+        <span>Remote-friendly</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WORK ============ -->
+  <section id="work">
+    <div class="wrap">
+      <p class="eyebrow">Selected work</p>
+      <h2>Case studies</h2>
+      <p class="lede" style="margin-bottom:2.5rem">
+        Each of these is a real incident or build, written as problem → constraints →
+        decisions → outcome. Names and addresses are abstracted.
+      </p>
+
+      <div class="grid">
+        {caseStudies.map((study) => (
+          <a class="card" href={`/case-studies/${study.slug}/`}>
+            <h3>{study.title}</h3>
+            <p>{study.summary}</p>
+            <div class="tag-row">
+              {study.stack.slice(0, 3).map((t) => <span class="tag">{t}</span>)}
+            </div>
+            <span class="card-metric">{study.metric}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOMELAB ============ -->
+  <section id="homelab">
+    <div class="wrap">
+      <p class="eyebrow">The estate</p>
+      <h2>How it fits together</h2>
+      <p class="lede">
+        One hypervisor, a container host, a storage share and a hosted edge. No inbound
+        ports are open, and no service is published without terminating at the edge first.
+      </p>
+
+      <div class="specs" style="margin-top:2.5rem">
+        <div class="spec">
+          <dt>Edge</dt>
+          <dd>Hosted tunnel terminates every public hostname. Origin addresses are never published; the tunnel holds the only inbound path.</dd>
+        </div>
+        <div class="spec">
+          <dt>Hypervisor</dt>
+          <dd>Proxmox VE running a container host and supporting guests. Snapshots before change; recovery documented before it is needed.</dd>
+        </div>
+        <div class="spec">
+          <dt>Container host</dt>
+          <dd>Docker with a managed stack, remote storage mounted before dependent services start.</dd>
+        </div>
+        <div class="spec">
+          <dt>Storage</dt>
+          <dd>Network share for media and application data, with hardlink presentation so seeding payload and library files share one copy.</dd>
+        </div>
+        <div class="spec">
+          <dt>Identity</dt>
+          <dd>Access-controlled entry points, per-service credentials, and rotation recorded when it happens.</dd>
+        </div>
+        <div class="spec">
+          <dt>Observability</dt>
+          <dd>Per-container metrics plus endpoint and certificate checks, with alerts on the paths that actually break.</dd>
+        </div>
+      </div>
+
+      <div class="callout">
+        A public architecture write-up is also a reconnaissance document. Everything here
+        is deliberately abstracted: no internal addresses, hostnames, tokens or live
+        screenshots. Topology and decisions are shown; attack surface is not.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STACK ============ -->
+  <section id="stack">
+    <div class="wrap">
+      <p class="eyebrow">Tooling</p>
+      <h2>Stack</h2>
+      <p class="lede" style="margin-bottom:2.5rem">
+        Tools I have operated under load, not simply installed.
+      </p>
+
+      <div class="grid">
+        {stack.map((group) => (
+          <div class="card">
+            <h3>{group.group}</h3>
+            <div class="tag-row">
+              {group.items.map((item) => <span class="tag">{item}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section id="contact">
+    <div class="wrap">
+      <p class="eyebrow">Contact</p>
+      <h2>Get in touch</h2>
+      <p class="lede">
+        Happy to talk through any of the above in more depth — including the parts that
+        went wrong first.
+      </p>
+
+      <div class="specs" style="margin-top:2rem;max-width:44rem">
+        <div class="spec"><dt>Email</dt><dd><a href={`mailto:${site.email}`}>{site.email}</a></dd></div>
+        <div class="spec"><dt>GitHub</dt><dd><a href={site.github} rel="me noopener">{site.github.replace('https://', '')}</a></dd></div>
+        {site.linkedin && (
+          <div class="spec"><dt>LinkedIn</dt><dd><a href={site.linkedin} rel="me noopener">{site.linkedin.replace('https://', '')}</a></dd></div>
+        )}
+        <div class="spec"><dt>CV</dt><dd><a href={site.cv}>Download PDF</a></dd></div>
+      </div>
+    </div>
+  </section>
+</Layout>

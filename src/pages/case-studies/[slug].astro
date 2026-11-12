@@ -1,0 +1,80 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { site } from '../../data/site.js';
+import { caseStudies } from '../../data/caseStudies.js';
+
+export function getStaticPaths() {
+  return caseStudies.map((study) => ({
+    params: { slug: study.slug },
+    props: { study },
+  }));
+}
+
+const { study } = Astro.props;
+---
+
+<Layout title={study.title} description={study.summary}>
+  <section style="padding-block:4rem 3rem">
+    <div class="wrap">
+      <p class="eyebrow">
+        <a href="/#work">← All work</a>
+      </p>
+      <h1 style="max-width:26ch">{study.title}</h1>
+      <p class="lede">{study.summary}</p>
+
+      <div class="tag-row" style="margin-top:1.5rem">
+        {study.stack.map((t) => <span class="tag">{t}</span>)}
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="specs" style="max-width:44rem">
+        <div class="spec"><dt>Role</dt><dd>{study.role}</dd></div>
+        <div class="spec"><dt>Result</dt><dd>{study.metric}</dd></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="prose">
+        <h2>Context</h2>
+        <p>{study.context}</p>
+
+        <h2>Constraints</h2>
+        <ul>
+          {study.constraints.map((c) => <li>{c}</li>)}
+        </ul>
+
+        <h2>Decisions</h2>
+        {study.decisions.map((d) => (
+          <>
+            <h3>{d.title}</h3>
+            <p>{d.body}</p>
+          </>
+        ))}
+
+        <h2>Outcome</h2>
+        <ul>
+          {study.outcome.map((o) => <li>{o}</li>)}
+        </ul>
+
+        <h2>What it taught me</h2>
+        <blockquote>{study.lessons}</blockquote>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="dim" style="font-size:0.9rem">
+        Addresses, hostnames and identifiers in this write-up are abstracted or
+        generalised. If you would like the specific detail, ask — I am happy to walk
+        through it directly.
+      </p>
+      <p style="margin-top:2rem"><a href="/#work">← Back to all work</a></p>
+    </div>
+  </section>
+</Layout>

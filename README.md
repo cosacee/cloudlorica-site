@@ -7,15 +7,34 @@ Static site built with **Astro**, deployed to **Cloudflare Pages** at
 ## How the pipeline works
 
 ```
-local edit → git push → GitHub → Cloudflare Pages build → cloudlorica.uk
+git push origin main
+   └─ GitHub Actions: .github/workflows/deploy.yml
+        ├─ npm ci
+        ├─ npm run build      → dist/
+        └─ wrangler pages deploy dist --project-name=cloudlorica-site
+             └─ live at https://cloudlorica.uk
 ```
 
-A failed build **does not** replace the live deployment, so pushing a broken commit
-is recoverable — the previous production deploy keeps serving.
+Push-to-deploy is handled by **GitHub Actions**, not Cloudflare's Git integration.
+This is deliberate: Cloudflare's Pages GitHub App requires a browser OAuth + 2FA
+flow that cannot be completed over the API (`error 8000011`). The Actions route
+needs no dashboard interaction and lives entirely in this repo.
 
-- **Build command:** `npm run build`
-- **Output directory:** `dist`
-- **Node version:** 22 or newer (set `NODE_VERSION=22` in Pages if the build misbehaves)
+**Required repo secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | Token with **Cloudflare Pages: Edit** on the account |
+| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
+
+A failed build never replaces the live deployment — the previous production
+deploy keeps serving.
+
+Manual deploy (still works, useful for testing before pushing):
+
+```bash
+npm run deploy     # build + wrangler pages deploy
+```
 
 ## Local development
 
@@ -25,6 +44,8 @@ npm run dev      # http://localhost:4321
 npm run build    # produces dist/
 npm run preview  # serve the built output
 ```
+
+Note: the CI runner uses **Node 22 LTS**. The local machine may be newer; both build fine.
 
 ## Where the content lives
 

@@ -3,13 +3,14 @@
   "type": "module",
   "version": "0.1.0",
   "private": true,
-  "description": "Personal engineering portfolio — infrastructure, automation, self-hosted systems",
+  "description": "Personal engineering portfolio \u2014 infrastructure, automation, self-hosted systems",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "deploy": "astro build && wrangler pages deploy dist --project-name cloudlorica-site --branch main"
   },
   "dependencies": {
     "astro": "^5.0.0"

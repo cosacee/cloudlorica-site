@@ -351,6 +351,97 @@ export const caseStudies = [
     lessons:
       'A green check proves that the check ran, not that the thing works. Instrument the path the user takes, and always verify the layer beneath the one reporting success.',
   },
+  {
+    slug: 'wrong-diagnosis',
+    title: 'The image was fine: overturning a confident diagnosis',
+    summary:
+      'A service refused to start and the container image was blamed. The image was intact. Finding the real cause meant inspecting the thing that had already been condemned, rather than accepting a plausible story about it.',
+    metric: 'Restored on a fresh volume · 28 containers visible · root cause: data directory, not image',
+    stack: ['Portainer', 'Docker volumes', 'REST APIs', 'bcrypt', 'SQLite'],
+    role: 'Sole engineer',
+    context:
+      'A container management interface stopped working after a storage change. It was the second failure of its kind, and the first explanation — that the released image was defective — had already been accepted and repeated. That explanation was wrong, and it was actively blocking the fix.',
+    constraints: [
+      'The platform was the most convenient way to see the whole container estate, so losing it also removed the tool that would normally be used to diagnose it.',
+      'Replacing the data volume was the likely fix, and that volume is also where the administrator account lived, so it could not be discarded without an archive and a route back.',
+      'Account recreation requires a one-time token that exists only in the container log during its first start.',
+    ],
+    decisions: [
+      {
+        title: 'Test the claim about the image, not the service',
+        body:
+          'The image was inspected directly. It contained a working binary and stored password hashes in a modern, well-formed format. A defective image would not produce a valid credential store. The hypothesis collapsed in a single command, after it had stood unchallenged for some time.',
+      },
+      {
+        title: 'Treat the data directory as the suspect',
+        body:
+          'The remaining state lived in a named volume rather than in the image. Archiving that volume and rebuilding from the declaration file produced a working service immediately — which is the definition of a data fault rather than a code fault.',
+      },
+      {
+        title: 'Initialise through the supported path',
+        body:
+          'First start emits a setup token, and the initialisation endpoint rejects any request without it. The documented flow was used rather than inserting rows by hand, so the resulting database is one the application itself created and understands.',
+      },
+      {
+        title: 'Read the API contract before assuming it',
+        body:
+          'The endpoint that registers a container host accepts multipart form data. Sending JSON returned a validation error about a missing name, which reads as a schema problem rather than a content-type problem — and cost a round of debugging the wrong thing.',
+      },
+    ],
+    outcome: [
+      'Service restored on a freshly created volume, with the previous one archived to a tarball first.',
+      'Administrator account reinitialised through the supported endpoint, then the full container estate enumerated to confirm visibility rather than assuming it.',
+      'The earlier conclusion explicitly retracted and recorded, so the next reader does not repeat the investigation.',
+    ],
+    lessons:
+      'A plausible diagnosis is not a verified one. When a conclusion is blocking progress, test the conclusion itself — here the cheapest test was reading what was actually inside the thing that had already been blamed.',
+  },
+
+  {
+    slug: 'mail-queue',
+    title: 'Mail queued for weeks, for two unrelated reasons',
+    summary:
+      'A mail server accumulated thousands of deferred messages while name resolution tested perfectly from every other vantage point. Fixing that exposed a second, larger problem: the public address was blocklisted, so delivery could never have worked at all.',
+    metric: '3,500+ queued messages resolved · confined resolver found · delivery proven impossible in principle',
+    stack: ['Postfix', 'chroot', 'DNS', 'SMTP', 'Log analysis'],
+    role: 'Sole engineer',
+    context:
+      'A host stopped delivering notification mail. Messages accumulated in the queue rather than failing, so the sending side believed everything was working. Standard resolution tests passed, which pointed the investigation away from DNS entirely.',
+    constraints: [
+      'The queue was being cleared periodically, which removed the evidence and the symptom at the same time.',
+      'External resolution tested correctly from the hypervisor and from public resolvers, so "the DNS server is broken" was demonstrably false.',
+      'Restarting the service changed nothing, so the fault sat somewhere a reload does not reach.',
+    ],
+    decisions: [
+      {
+        title: 'Reproduce the failure from the daemon, not from the shell',
+        body:
+          'The daemon runs confined and therefore reads its own copy of the resolver configuration rather than the live one. That copy still named a gateway that no longer existed after a network renumber. Every shell test was testing a different file, which is why the results disagreed with the daemon.',
+      },
+      {
+        title: 'Clear the queue, then read what it was saying',
+        body:
+          'Purging addresses the symptom, so the deferred messages were inspected instead. Once outbound connectivity worked, they carried the actual remote response: a reputation rejection naming the public address of the connection.',
+      },
+      {
+        title: 'Distinguish sending from delivering',
+        body:
+          'A message leaving the local queue looks identical to success in most dashboards. Only the remote server response separates them, and this one was a permanent rejection for reputation rather than a transient failure worth retrying.',
+      },
+      {
+        title: 'Stop work on a path that cannot succeed',
+        body:
+          'With the reason established, the requirement changed from a configuration fix to an authenticated relay. Continuing to tune the local mail server would have produced a permanently empty queue and zero delivered messages.',
+      },
+    ],
+    outcome: [
+      'Deferred queue drained, with the resolver fault corrected at its source rather than worked around.',
+      'Every future network renumber recorded as requiring the confined resolver copy to be resynchronised — the fix that had been invisible was made visible.',
+      'Direct delivery established as impossible from that public address, which converted an open-ended bug into a specific, priced decision about relaying.',
+    ],
+    lessons:
+      'A confined process can read a different copy of the configuration than the one being edited. And queued is not sent: the only proof of delivery is what the remote server says.',
+  },
 ];
 
 export const bySlug = Object.fromEntries(caseStudies.map((c) => [c.slug, c]));

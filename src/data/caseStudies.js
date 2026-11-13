@@ -213,6 +213,144 @@ export const caseStudies = [
     lessons:
       'Self-hosting is an operations discipline, not a hosting choice. The value is in the recovery path, not the uptime chart.',
   },
+  {
+    slug: 'gated-delivery',
+    title: 'Delivering a private file through a public page, without storing it',
+    summary:
+      'A credential bundle needed to be downloadable by exactly one person from a dashboard that is deliberately public. The obvious gate — protect the tile — was the wrong one, because a control that only appears after a successful request vanishes precisely when that request fails.',
+    metric: 'File never leaves the origin · anonymous redirect, authorised download · 12 client-side assertions',
+    stack: ['Cloudflare Access', 'Workers', 'JWT / JWKS verification', 'Node.js', 'jsdom'],
+    role: 'Sole engineer',
+    context:
+      'A self-hosted dashboard is public on purpose: it is a landing page, not a secret. One tile among many needed to hand a credential bundle to its owner alone. The bundle had to stay on the local origin, and the estate publishes nothing directly — every public hostname terminates at a hosted edge.',
+    constraints: [
+      'The dashboard had to stay public. Protecting the whole hostname would have closed a door that was intentionally open.',
+      'A protected subresource cannot prompt for authentication: an asynchronous request carries no navigation, so a session can never be established through it.',
+      'The tile had to remain visible even when the identity check fails — which is the one case where it is most likely to fail.',
+      'An earlier version cached the file at the edge for convenience, which put the data somewhere other than the origin that owns it.',
+    ],
+    decisions: [
+      {
+        title: 'Gate the click, not the page',
+        body:
+          'Rendering the control unconditionally and gating the navigation inverted the failure mode. If the identity check fails, the tile is still there and the click resolves it. If it succeeded first, a broken request would have removed the only thing the user needed.',
+      },
+      {
+        title: 'Keep identity at the edge and data on the origin',
+        body:
+          'The access policy and the session live at the provider; the file is served by a small process bound to the local network that answers one route and nothing else. The provider authenticates, the origin authorises, and neither holds the other piece.',
+      },
+      {
+        title: 'Verify the assertion instead of trusting the header',
+        body:
+          'The edge injects a signed assertion on an authorised request, but a header is still a string. The verifying function re-derives trust: it fetches the published signing keys, checks the signature, checks the audience claim and checks expiry. A token minted for a different application on the same account is rejected rather than honoured.',
+      },
+      {
+        title: 'Test the client without a browser',
+        body:
+          'The failure being fixed was invisible from the server side: a healthy container, a 200 response, a missing control. A DOM harness runs the deployed script against the deployed markup and asserts the control exists, is first in its list, has handlers, carries the correct icon, and does not duplicate when run twice.',
+      },
+    ],
+    outcome: [
+      'Anonymous requests redirected to the identity provider; authorised requests returned the file byte-identical to the origin copy, with no edge-side copy retained.',
+      'Malformed, expired, tampered and wrong-audience tokens each rejected in isolation rather than as a group.',
+      'The dashboard remained public and unauthenticated throughout, and the tile now renders before any network call is attempted.',
+    ],
+    lessons:
+      'A control that only appears after a successful request is absent exactly when that request fails. Render the affordance first and let the click do the work.',
+  },
+
+  {
+    slug: 'reproducible-estate',
+    title: 'An estate that runs but cannot be rebuilt',
+    summary:
+      'Containers were declarative and survived anything. Everything else — edge applications, routes, policies, DNS and one database fix — existed only as the side effect of an API call or a manual edit. Nothing could be reconstructed, only remembered.',
+    metric: '26 files versioned · 10 edge objects exported · nightly reconciliation, verified',
+    stack: ['Git', 'Infrastructure as code', 'Cloudflare API', 'PowerShell', 'Docker Compose'],
+    role: 'Sole engineer',
+    context:
+      'The estate was stable: containers rebuilt cleanly, upgrades were uneventful, and reboots changed nothing. That stability was masking a different problem. Only one layer was described by a file, and the rest of the configuration had no representation anywhere except the running system.',
+    constraints: [
+      'The estate was in daily use, so a reproducibility exercise could not become an outage.',
+      'Configuration and secrets were entangled: container definitions carried database passwords in plain environment blocks.',
+      'There was no version history for any of it, and therefore no baseline to diff against.',
+    ],
+    decisions: [
+      {
+        title: 'Separate rebuilt from recoverable',
+        body:
+          'Docker Compose is genuinely declarative: the file states the desired end state and a command converges on it, which is why containers survived upgrades. The edge was imperative: objects were created once and thereafter merely existed. A snapshot of those objects is recoverable but not reproducible, and presenting it as infrastructure as code would have been dishonest.',
+      },
+      {
+        title: 'Version what is safe, export what is not',
+        body:
+          'A first attempt to version a working scripts directory staged hundreds of files including credential material. That was rejected rather than reasoned with. The scope was narrowed to the artefacts that matter, and both commits were gated on a scan that fails if any known secret value appears anywhere in the staged tree.',
+      },
+      {
+        title: 'Automate the refresh, then prove the automation',
+        body:
+          'A scheduled job pulls the live configuration, re-exports the edge state and commits only when something changed. The task was triggered immediately, its exit code checked and the resulting commit confirmed — because a scheduler reporting success and a job that actually ran are different claims.',
+      },
+      {
+        title: 'Send the state somewhere it can survive',
+        body:
+          'Definitions that cannot be versioned safely were archived to a separate device with retention, and the named volumes were classified as data rather than configuration — which changes what protects them.',
+      },
+    ],
+    outcome: [
+      'Twenty-six files under version control, including the edge export of applications, policies, routes, tunnel ingress, DNS and rulesets.',
+      'A nightly task with a secret-scanning commit gate, verified end to end rather than assumed.',
+      'The remaining gaps documented inside the repository itself: a hand-created database table, a repository that is still single-copy, and the absence of a scheduled hypervisor backup.',
+    ],
+    lessons:
+      'If a fix exists only inside a running system, it is a rumour. Documentation is proven by whether it can rebuild the thing, not by whether it describes it.',
+  },
+
+  {
+    slug: 'silent-failure',
+    title: 'Three services that reported success while broken',
+    summary:
+      'A reverse proxy emitted roughly ten thousand errors a day, a dashboard returned HTTP 200 with nothing on it, and a mail queue held thousands of messages. Each system was healthy by its own measure. None of them was usable.',
+    metric: '~10,000 errors/day to zero · empty page to fully populated · queue cause found',
+    stack: ['Traefik', 'Docker', 'SQLite', 'Postfix', 'Log analysis'],
+    role: 'Sole engineer',
+    context:
+      'Three unrelated services on one estate were failing in ways their own reporting described as success. The proxy was serving traffic correctly while filling its log with failures. The dashboard was returning a valid empty page rather than an error. The mail server was accepting messages and never delivering them.',
+    constraints: [
+      'Every service passed the check that was already watching it, so the monitoring could not be the source of the diagnosis.',
+      'Each fault sat in a different layer from the symptom, which is what made them persist.',
+      'Restarting the affected services cleared nothing, so the fixes had to be understood before they were applied.',
+    ],
+    decisions: [
+      {
+        title: 'Measure the path, not the process',
+        body:
+          'A running container and a 200 response were both true and both useless. Health was redefined against the user-visible path — does the page contain what it should, does the mail leave the queue, is the error rate falling — so a green indicator could no longer mask a broken service.',
+      },
+      {
+        title: 'Treat "the migrations ran" as a claim, not evidence',
+        body:
+          'The dashboard rendered nothing because a table the interface filters on did not exist, while the migration log reported that its migration had run. Verifying the schema directly, rather than the bookkeeping about the schema, found it in minutes. The same instinct applied to a repair tool whose output passed an integrity check while having destroyed two columns.',
+      },
+      {
+        title: 'Fix the layer the fault is in, not the layer the symptom is in',
+        body:
+          'The mail failure looked like DNS and was — but not in the file being edited. A chrooted daemon reads its own copy of the resolver configuration, which still pointed at an address that no longer existed. Editing the system copy had no effect, which read as a failed fix rather than a misplaced one.',
+      },
+      {
+        title: 'Change the version, not the workaround',
+        body:
+          'The proxy was negotiating an API version its daemon no longer accepted. Pinning the version with an unsupported flag killed the container outright; the correct answer was upgrading to a release that negotiates natively, after which the errors stopped without further configuration.',
+      },
+    ],
+    outcome: [
+      'Proxy error volume fell from roughly ten thousand a day to zero, measured over a soak period rather than a single moment.',
+      'The dashboard returned every pinned item instead of an empty page, and the missing table was recorded so a restored database does not repeat the fault.',
+      'The mail queue drained — and the reason delivery was impossible in the first place, a blocklisted public address, was identified before further effort went into a fix that could never have worked.',
+    ],
+    lessons:
+      'A green check proves that the check ran, not that the thing works. Instrument the path the user takes, and always verify the layer beneath the one reporting success.',
+  },
 ];
 
 export const bySlug = Object.fromEntries(caseStudies.map((c) => [c.slug, c]));

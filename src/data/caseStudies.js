@@ -12,10 +12,12 @@
 export const caseStudies = [
   {
     slug: 'edge-migration',
+    provenance: 'ai-assisted',
+    keywords: ['DNS', 'tunnel ingress', 'subnet migration', 'incident response'],
     title: 'Migrating 20 public services across a subnet renumber',
     summary:
       'A LAN renumber invalidated routing for every published hostname at once. DNS looked correct while every route was dead — finding the real failure layer took separating three independent config surfaces.',
-    metric: '23 ingress rules repointed · 20/22 hostnames verified live',
+    metric: '23 ingress rules repointed · estate fully verified after origin fixes',
     stack: ['Cloudflare Tunnel', 'Zero Trust', 'DNS', 'Traefik', 'Linux'],
     role: 'Sole engineer',
     context:
@@ -44,7 +46,7 @@ export const caseStudies = [
     ],
     outcome: [
       'Ingress reduced from 24 to 23 rules, every origin repointed to the new subnet.',
-      '20 of 22 hostnames verified end-to-end; the remaining two were origin service failures, not routing failures — confirming the edge was correct.',
+      '20 of 22 hostnames verified end-to-end on the first pass; the remaining two were origin service failures rather than routing failures, which confirmed the edge itself was correct. Both origins were repaired afterwards, taking the estate to fully verified.',
       'Established a rule that a 502 means routing is fixed and the origin is down, while a 404 means no rule matched. That single distinction cut future diagnosis time significantly.',
     ],
     lessons:
@@ -53,6 +55,8 @@ export const caseStudies = [
 
   {
     slug: 'database-recovery',
+    provenance: 'ai-assisted',
+    keywords: ['SQLite', 'data recovery', 'backup validation', 'integrity checking'],
     title: 'Recovering a corrupt SQLite database — and knowing when not to',
     summary:
       'A media manager began returning HTTP 500. The database was malformed, the most recent backups were also corrupt, and the automatic repair tool produced a file that passed integrity checks but silently destroyed data.',
@@ -94,6 +98,8 @@ export const caseStudies = [
 
   {
     slug: 'dns-latency',
+    provenance: 'ai-assisted',
+    keywords: ['DNS', 'VPN routing', 'latency', 'packet probing'],
     title: '400ms to 30ms: diagnosing DNS that looked correct',
     summary:
       'Name resolution was slow and some hosts failed entirely. The configured resolvers were valid, publicly reachable, and completely useless from the affected machine — because a VPN was capturing the traffic.',
@@ -134,6 +140,8 @@ export const caseStudies = [
 
   {
     slug: 'torrent-pipeline',
+    provenance: 'ai-assisted',
+    keywords: ['automation', 'VPN port forwarding', 'reliability', 'reconciliation'],
     title: 'A torrent pipeline that survives VPN reconnects',
     summary:
       'Seeding requires an inbound port, and the VPN rotates that port on every reconnect. Keeping the client, the port mapping and the tracker status in agreement needed automation rather than discipline.',
@@ -175,10 +183,12 @@ export const caseStudies = [
 
   {
     slug: 'media-stack',
+    provenance: 'ai-assisted',
+    keywords: ['self-hosting', 'virtualisation', 'storage', 'observability'],
     title: 'Self-hosted media and photo stack on commodity hardware',
     summary:
       'Photos, music broadcasting, remote desktop and dashboards, all served from a home rack with no cloud dependency — including the edge, the identity and the monitoring.',
-    metric: '20+ services · single-command recovery · zero monthly cloud spend',
+    metric: '28 containers · single-command recovery · zero monthly cloud spend',
     stack: ['Proxmox', 'Docker', 'CIFS', 'Traefik', 'Cloudflare', 'Netdata', 'Uptime Kuma'],
     role: 'Sole engineer',
     context:
@@ -215,6 +225,8 @@ export const caseStudies = [
   },
   {
     slug: 'gated-delivery',
+    provenance: 'ai-assisted',
+    keywords: ['identity', 'Cloudflare Access', 'JWT verification', 'edge security'],
     title: 'Delivering a private file through a public page, without storing it',
     summary:
       'A credential bundle needed to be downloadable by exactly one person from a dashboard that is deliberately public. The obvious gate — protect the tile — was the wrong one, because a control that only appears after a successful request vanishes precisely when that request fails.',
@@ -262,6 +274,8 @@ export const caseStudies = [
 
   {
     slug: 'reproducible-estate',
+    provenance: 'ai-assisted',
+    keywords: ['infrastructure as code', 'version control', 'secret hygiene', 'recovery'],
     title: 'An estate that runs but cannot be rebuilt',
     summary:
       'Containers were declarative and survived anything. Everything else — edge applications, routes, policies, DNS and one database fix — existed only as the side effect of an API call or a manual edit. Nothing could be reconstructed, only remembered.',
@@ -308,6 +322,8 @@ export const caseStudies = [
 
   {
     slug: 'silent-failure',
+    provenance: 'ai-assisted',
+    keywords: ['observability', 'false success', 'log analysis', 'root cause'],
     title: 'Three services that reported success while broken',
     summary:
       'A reverse proxy emitted roughly ten thousand errors a day, a dashboard returned HTTP 200 with nothing on it, and a mail queue held thousands of messages. Each system was healthy by its own measure. None of them was usable.',
@@ -353,6 +369,8 @@ export const caseStudies = [
   },
   {
     slug: 'wrong-diagnosis',
+    provenance: 'ai-assisted',
+    keywords: ['debugging', 'Docker volumes', 'API contracts', 'retracting a diagnosis'],
     title: 'The image was fine: overturning a confident diagnosis',
     summary:
       'A service refused to start and the container image was blamed. The image was intact. Finding the real cause meant inspecting the thing that had already been condemned, rather than accepting a plausible story about it.',
@@ -399,6 +417,8 @@ export const caseStudies = [
 
   {
     slug: 'mail-queue',
+    provenance: 'ai-assisted',
+    keywords: ['SMTP', 'chroot', 'deliverability', 'root cause'],
     title: 'Mail queued for weeks, for two unrelated reasons',
     summary:
       'A mail server accumulated thousands of deferred messages while name resolution tested perfectly from every other vantage point. Fixing that exposed a second, larger problem: the public address was blocklisted, so delivery could never have worked at all.',

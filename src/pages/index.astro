@@ -38,7 +38,7 @@ const stack = [
       <p class="eyebrow">{site.role}</p>
       <h1>{site.headline}</h1>
       <p class="lede">
-        I run a self-hosted estate of {site.stats[1].value} services across
+        I run a self-hosted estate of {site.stats.find((s) => s.label === 'services operated')?.value ?? '28'} services across
         virtualisation, containers and a hosted edge — and I document the failures
         as carefully as the successes. Below are the problems that taught me the most.
       </p>
@@ -55,22 +55,38 @@ const stack = [
     <div class="wrap">
       <p class="eyebrow">Selected work</p>
       <h2>Case studies</h2>
-      <p class="lede" style="margin-bottom:2.5rem">
+      <p class="lede" style="margin-bottom:1.25rem">
         Each of these is a real incident or build, written as problem → constraints →
         decisions → outcome. Names and addresses are abstracted.
       </p>
 
+      <p class="dim" style="font-size:0.88rem;margin-bottom:2.5rem;max-width:62ch">
+        Every study is marked for provenance.
+        <span class="badge badge-ai" style="margin-inline:0.15rem">AI Assisted Publish</span>
+        means it was drafted with AI assistance and then reviewed, corrected and edited.
+        <span class="badge badge-manual" style="margin-inline:0.15rem">Manual</span>
+        means it was written by hand. Keywords are descriptive, not tooling.
+      </p>
+
       <div class="grid">
-        {caseStudies.map((study) => (
-          <a class="card" href={`/case-studies/${study.slug}/`}>
-            <h3>{study.title}</h3>
-            <p>{study.summary}</p>
-            <div class="tag-row">
-              {study.stack.slice(0, 3).map((t) => <span class="tag">{t}</span>)}
-            </div>
-            <span class="card-metric">{study.metric}</span>
-          </a>
-        ))}
+        {caseStudies.map((study) => {
+          const ai = study.provenance !== 'manual';
+          return (
+            <a class="card" href={`/case-studies/${study.slug}/`}>
+              <h3>{study.title}</h3>
+              <p>{study.summary}</p>
+              <div class="tag-row">
+                {study.stack.slice(0, 3).map((t) => <span class="tag">{t}</span>)}
+              </div>
+              <div class="card-foot">
+                <span class="card-metric">{study.metric}</span>
+                <span class={ai ? 'badge badge-ai' : 'badge badge-manual'}>
+                  {ai ? 'AI Assisted Publish' : 'Manual'}
+                </span>
+              </div>
+            </a>
+          );
+        })}
       </div>
     </div>
   </section>

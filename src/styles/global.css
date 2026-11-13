@@ -239,6 +239,70 @@ a.card:hover {
   background: var(--bg-raise);
 }
 
+/* keyword chips — distinct from the tool tags above */
+.tag-kw {
+  border-style: dashed;
+  color: var(--fg-muted);
+}
+
+.tag-kw::before {
+  content: "#";
+  opacity: 0.5;
+  margin-right: 0.12rem;
+}
+
+/* ---------- provenance badge ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-lit);
+  color: var(--fg-muted);
+  background: var(--bg-raise);
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.badge-ai {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.badge-manual {
+  color: var(--fg);
+  border-color: var(--border-lit);
+}
+
+.card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 0.6rem;
+}
+
+.card-foot .card-metric {
+  margin-top: 0;
+  padding-top: 0;
+}
+
 /* ---------- definition list / spec rows ---------- */
 
 .specs {

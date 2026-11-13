@@ -11,6 +11,12 @@ export function getStaticPaths() {
 }
 
 const { study } = Astro.props;
+
+const isAI = study.provenance !== 'manual';
+const provenanceLabel = isAI ? 'AI Assisted Publish' : 'Manual';
+const provenanceDetail = isAI
+  ? 'Drafted with AI assistance, then reviewed, corrected and edited before publication.'
+  : 'Written by hand, without AI drafting.';
 ---
 
 <Layout title={study.title} description={study.summary}>
@@ -19,11 +25,20 @@ const { study } = Astro.props;
       <p class="eyebrow">
         <a href="/#work">← All work</a>
       </p>
+
+      <div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:1rem">
+        <span class={isAI ? 'badge badge-ai' : 'badge badge-manual'}>{provenanceLabel}</span>
+      </div>
+
       <h1 style="max-width:26ch">{study.title}</h1>
       <p class="lede">{study.summary}</p>
 
       <div class="tag-row" style="margin-top:1.5rem">
         {study.stack.map((t) => <span class="tag">{t}</span>)}
+      </div>
+
+      <div class="tag-row" style="margin-top:0.5rem">
+        {study.keywords.map((k) => <span class="tag tag-kw">{k}</span>)}
       </div>
     </div>
   </section>
@@ -33,6 +48,7 @@ const { study } = Astro.props;
       <div class="specs" style="max-width:44rem">
         <div class="spec"><dt>Role</dt><dd>{study.role}</dd></div>
         <div class="spec"><dt>Result</dt><dd>{study.metric}</dd></div>
+        <div class="spec"><dt>Written</dt><dd>{provenanceDetail}</dd></div>
       </div>
     </div>
   </section>

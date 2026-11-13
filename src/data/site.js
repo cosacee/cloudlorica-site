@@ -25,8 +25,7 @@ export const site = {
 
   // --- summary stats shown in the hero --------------------------------
   stats: [
-    { label: 'years in infrastructure', value: 'PLACEHOLDER' },
-    { label: 'services operated', value: '20+' },
+    { label: 'services operated', value: '28' },
     { label: 'uptime monitored', value: '24/7' },
   ],
 };

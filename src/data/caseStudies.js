@@ -561,6 +561,59 @@ export const caseStudies = [
     lessons:
       'When something you want is given away in seconds, the only way to get it is to be asking all the time. But an automated wait is only worth trusting if it writes down its progress and its failures, otherwise a week of trying and a dead process look identical from the outside.',
   },
+
+  {
+    slug: 'data-audit',
+    provenance: 'ai-assisted',
+    keywords: ['databases', 'backup', 'audit', 'recovery'],
+    title: 'Nineteen databases, and the backup that had stopped',
+    summary:
+      'Nobody had written down how many databases the estate runs, or what would survive losing one. Counting them was easy. Working out what copies each one turned up two problems.',
+    metric: '19 data stores · 2 backup gaps found · 0 records changed',
+    stack: ['PostgreSQL', 'MariaDB', 'SQLite', 'Proxmox'],
+    role: 'Sole engineer',
+    diagram: 'data-layer',
+    diagramLabel: 'The data layer, as found',
+    context:
+      'An inventory was taken of every database in the estate: four server databases and seven embedded ones inside the container host, a cache and a search index alongside them, and six more on the Windows machine that handles media and downloads. The second question, which nobody had asked, was what copies each one.',
+    constraints: [
+      'The stores are spread across two hosts and three database engines, so no single tool can list them all.',
+      'Reading sizes and row counts out of a production database is safe. Writing to one is not, so the audit had to stay read-only.',
+      'Two of the stores are big enough that rebuilding by hand would take days, and the small ones hold configuration that is awkward to recreate.',
+      'Most belong to third-party applications with their own schema, so there is no migration script to read for a clue about what matters.',
+    ],
+    decisions: [
+      {
+        title: 'Count engines, then count files',
+        body:
+          'The server databases were asked for their own sizes. The embedded ones were found by walking the container data directories for database files. Either method on its own misses about half of what exists.',
+      },
+      {
+        title: 'Follow the backup, not the inventory',
+        body:
+          'The useful question was not how many databases exist but what copies each one. That led to a single weekly snapshot covering everything inside the container host, and nothing at all covering the Windows host.',
+      },
+      {
+        title: 'Put the gaps in the same picture as the healthy parts',
+        body:
+          'A separate list of problems is easy to ignore. Showing the unprotected stores in the same diagram as the protected ones makes the hole visible in a single glance, which is why the diagram above exists.',
+      },
+      {
+        title: 'Measure first, fix afterwards',
+        body:
+          'Findings were written down before anything was changed, so the audit stayed a measurement instead of turning into a repair session with an unknown starting point.',
+      },
+    ],
+    outcome: [
+      'Nineteen stores found: thirteen in containers and six on Windows, across three database engines plus a cache and a search index.',
+      'Sizes measured rather than guessed: monitoring history 223 MB, photo library 153 MB, and the monitoring dashboard own history file 219 MB.',
+      'The weekly snapshot that protects every container database missed its scheduled night on 15 November. The run before that had been on 18 October, and neither failure announced itself.',
+      'The six Windows databases had no backup job at all, which is the more serious of the two findings.',
+      'The radio stack own internal database turned out to be empty, confirming its data had really moved into the shared server instead of sitting in two places.',
+    ],
+    lessons:
+      'An inventory is not a backup plan. Knowing every database exists says nothing about what would survive losing one, and asking that question store by store found two problems that a green status page would never show. One of them had gone unnoticed for a month.',
+  },
 ];
 
 export const bySlug = Object.fromEntries(caseStudies.map((c) => [c.slug, c]));

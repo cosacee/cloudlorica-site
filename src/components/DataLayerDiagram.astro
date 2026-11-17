@@ -1,0 +1,131 @@
+---
+/**
+ * Data-layer diagram: every database in the estate, grouped by host,
+ * with what actually protects each group. Drawn as plain SVG so it ships
+ * with the page (no image request, no third party, no JS).
+ *
+ * Sanitisation: no hostnames, addresses, paths or account identifiers.
+ * Sizes are on-disk measurements taken during the audit.
+ */
+---
+
+<svg
+  class="data-layer"
+  viewBox="0 0 980 640"
+  role="img"
+  aria-label="Diagram: nineteen data stores across two hosts, showing that the container host is covered by a weekly VM snapshot and the storage host has no backup."
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <defs>
+    <marker id="dl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+    </marker>
+    <style>
+      .dl-box   { fill: #151a20; stroke: #242c36; stroke-width: 1; }
+      .dl-host  { fill: #121519; stroke: #2f3a47; }
+      .dl-ok    { fill: #10201a; stroke: #2f5d43; }
+      .dl-gap   { fill: #201414; stroke: #5d3232; }
+      .dl-t     { fill: #e8edf4; font: 600 15px ui-sans-serif, system-ui, sans-serif; }
+      .dl-s     { fill: #9aa7b6; font: 400 13px ui-sans-serif, system-ui, sans-serif; }
+      .dl-m     { fill: #6b7787; font: 400 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .dl-lbl   { fill: #6b7787; font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+               letter-spacing: 0.14em; text-transform: uppercase; }
+      .dl-good  { fill: #7fd0a4; font: 600 14px ui-sans-serif, system-ui, sans-serif; }
+      .dl-bad   { fill: #e08a7f; font: 600 14px ui-sans-serif, system-ui, sans-serif; }
+      .dl-warn  { fill: #f0b429; font: 400 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .dl-link  { stroke: #2f3a47; stroke-width: 1.5; fill: none; color: #2f3a47; }
+      .dl-link-bad { stroke: #5d3232; stroke-width: 1.5; fill: none; color: #5d3232; }
+      .dl-frame { fill: none; stroke: #242c36; stroke-dasharray: 3 5; }
+    </style>
+  </defs>
+
+  <!-- column headers -->
+  <text class="dl-lbl" x="12" y="34">Host</text>
+  <text class="dl-lbl" x="230" y="34">Data store</text>
+  <text class="dl-lbl" x="660" y="34">What protects it</text>
+
+  <!-- ================= container host ================= -->
+  <rect class="dl-host" x="12" y="56" width="180" height="300" rx="10"></rect>
+  <text class="dl-t"  x="30" y="90">Container host</text>
+  <text class="dl-s"  x="30" y="114">Linux, 28 containers</text>
+  <text class="dl-m"  x="30" y="136">13 stores</text>
+  <text class="dl-s"  x="30" y="300">Databases here</text>
+  <text class="dl-s"  x="30" y="322">live inside the</text>
+  <text class="dl-s"  x="30" y="344">virtual machine.</text>
+
+  <!-- engine rows -->
+  <g>
+    <rect class="dl-box" x="230" y="56" width="380" height="64" rx="10"></rect>
+    <text class="dl-t" x="248" y="84">MariaDB</text>
+    <text class="dl-s" x="248" y="106">radio station config, remote-desktop users</text>
+    <text class="dl-m" x="592" y="84" text-anchor="end">12 MB</text>
+
+    <rect class="dl-box" x="230" y="130" width="380" height="64" rx="10"></rect>
+    <text class="dl-t" x="248" y="158">PostgreSQL</text>
+    <text class="dl-s" x="248" y="180">photo library, monitoring history</text>
+    <text class="dl-m" x="592" y="158" text-anchor="end">376 MB</text>
+
+    <rect class="dl-box" x="230" y="204" width="380" height="64" rx="10"></rect>
+    <text class="dl-t" x="248" y="232">SQLite, seven files</text>
+    <text class="dl-s" x="248" y="254">monitoring history is 219 MB of it</text>
+    <text class="dl-m" x="592" y="232" text-anchor="end">244 MB</text>
+
+    <rect class="dl-box" x="230" y="278" width="380" height="64" rx="10"></rect>
+    <text class="dl-t" x="248" y="306">Cache and search index</text>
+    <text class="dl-s" x="248" y="328">photo machine-learning cache, bookmark search</text>
+    <text class="dl-m" x="592" y="306" text-anchor="end">60 MB</text>
+  </g>
+
+  <path class="dl-link" d="M 192 206 L 230 206" marker-end="url(#dl-arrow)"></path>
+
+  <!-- protection: covered -->
+  <rect class="dl-ok" x="660" y="56" width="308" height="150" rx="10"></rect>
+  <text class="dl-good" x="680" y="86">Weekly VM snapshot</text>
+  <text class="dl-s" x="680" y="112">One job copies the whole machine:</text>
+  <text class="dl-s" x="680" y="134">every container database above, kept</text>
+  <text class="dl-s" x="680" y="156">four weeks on a separate share.</text>
+  <text class="dl-warn" x="680" y="184">last run 13 Nov · missed 15 Nov</text>
+
+  <path class="dl-link" d="M 610 131 L 660 131" marker-end="url(#dl-arrow)"></path>
+
+  <!-- ================= storage host ================= -->
+  <rect class="dl-host" x="12" y="440" width="180" height="150" rx="10"></rect>
+  <text class="dl-t" x="30" y="474">Storage host</text>
+  <text class="dl-s" x="30" y="498">Windows, media stack</text>
+  <text class="dl-m" x="30" y="520">6 stores</text>
+  <text class="dl-s" x="30" y="556">These sit outside</text>
+  <text class="dl-s" x="30" y="578">the snapshot.</text>
+
+  <rect class="dl-box" x="230" y="440" width="380" height="90" rx="10"></rect>
+  <text class="dl-t" x="248" y="472">SQLite, six files</text>
+  <text class="dl-s" x="248" y="496">media player 74 MB, TV and film</text>
+  <text class="dl-s" x="248" y="518">managers 39 MB, plus requests</text>
+  <text class="dl-m" x="592" y="472" text-anchor="end">113 MB</text>
+
+  <path class="dl-link" d="M 192 485 L 230 485" marker-end="url(#dl-arrow)"></path>
+
+  <!-- protection: gap -->
+  <rect class="dl-gap" x="660" y="440" width="308" height="110" rx="10"></rect>
+  <text class="dl-bad" x="680" y="472">Nothing</text>
+  <text class="dl-s" x="680" y="498">No job copies these six databases.</text>
+  <text class="dl-s" x="680" y="520">Losing one means rebuilding the</text>
+  <text class="dl-s" x="680" y="542">history and queue by hand.</text>
+
+  <path class="dl-link-bad" d="M 610 485 L 660 485" marker-end="url(#dl-arrow)"></path>
+
+  <!-- footer note -->
+  <rect class="dl-frame" x="12" y="610" width="956" height="1" rx="0"></rect>
+  <text class="dl-m" x="12" y="632">
+    Nineteen data stores in total. Sizes measured on disk; counted by querying each engine and by walking the container data directories.
+  </text>
+</svg>
+
+<style>
+  .data-layer {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-block: 0.5rem 0.25rem;
+    color: #2f3a47;
+  }
+</style>

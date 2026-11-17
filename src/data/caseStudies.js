@@ -462,6 +462,123 @@ export const caseStudies = [
     lessons:
       'A confined process can read a different copy of the configuration than the one being edited. And queued is not sent: the only proof of delivery is what the remote server says.',
   },
+
+  {
+    slug: 'upload-ceiling',
+    provenance: 'ai-assisted',
+    keywords: ['reverse proxy', 'CORS', 'TLS', 'edge body cap', 'DNS-only', 'ACME'],
+    title: 'A 403 that blamed the proxy, and a 100 MB ceiling it did not cause',
+    summary:
+      'A private upload page failed two ways at once: logins were rejected with a CORS error, and large files could not be uploaded. One fault belonged to the edge, the other to the origin — and only one of them was actually broken.',
+    metric: 'Login 403 → 200 with a Secure cookie · 120 MB PUT accepted in 5.4 s where 100 MB was the ceiling · foreign Origin still 403',
+    stack: ['DNS', 'Edge proxy', 'Reverse proxy', 'TLS / ACME DNS-01', 'File server', 'systemd'],
+    role: 'Sole engineer',
+    context:
+      'A file-dropper used for moving large files onto a storage host was published as a CNAME to a hosted tunnel and sat behind an identity-aware proxy. Two complaints arrived together: submitting the login form returned "rejected by cors-check", and uploads larger than roughly 100 MB failed. Because both were reported as "the upload page is broken", they were initially treated as one fault.',
+    constraints: [
+      'The body ceiling is a property of the edge tier on proxied traffic, so no change to the origin could lift it — but the identity wall the page relied on exists only on proxied hostnames.',
+      'The file server is plain HTTP and computes its allowed Origin from its own listening socket, so every hop in front of it makes the browser and the server disagree about the scheme.',
+      'The page must remain reachable from outside the LAN, on a dynamic public address, without opening an inbound port on the storage host.',
+      'One edge route table serves every published hostname, so a routing edit is never local to the service being fixed.',
+    ],
+    decisions: [
+      {
+        title: 'Split the report into two faults before changing anything',
+        body:
+          'The login rejection reproduced with a one-field form post, long before any upload body was involved — so it could not be caused by a size limit. Testing the smallest possible failing request separated an origin configuration fault from an edge policy, and stopped a size-related fix from being applied to an authentication problem.',
+      },
+      {
+        title: 'Move the hostname off the edge, terminate TLS on the LAN',
+        body:
+          'The record was converted from a proxied CNAME to a DNS-only address, and the existing port-forwarded reverse proxy became the public entry point. TLS was issued with a DNS-01 challenge because no inbound port 80 exists — HTTP-01 was never an option, and the challenge needs no listener at all.',
+      },
+      {
+        title: 'Declare the proxy instead of only whitelisting the Origin',
+        body:
+          'Allowlisting the public Origin would have silenced the 403 while leaving the server reading the proxy address as the client address, and a banner in the page already reported the reverse-proxy configuration as untrusted — which quietly disables recent-uploads and delete. Telling the file server the proxy address, the forwarded client-IP header and the forwarded scheme fixed the cause rather than the symptom.',
+      },
+      {
+        title: 'Keep the cross-origin check intact',
+        body:
+          'The rejection was legitimate behaviour aimed at the wrong target: the check exists to stop other sites posting to the endpoint. Rather than disabling it, the correct origin was declared, and a foreign Origin was re-tested afterwards to confirm it still returns 403.',
+      },
+      {
+        title: 'Treat the identity wall as a priced trade, not an oversight',
+        body:
+          'Identity-aware access only exists on proxied hostnames, so leaving the edge necessarily removes it. That was accepted explicitly and recorded, with the page left protected by its own account password — the same posture the other LAN-published services already run.',
+      },
+      {
+        title: 'Check what the automation keys on before changing the record type',
+        body:
+          'A dynamic-DNS updater patches existing A records and deliberately skips CNAMEs, so converting the hostname also silently opted it out of address updates. The record type change and the updater coverage had to be treated as one change, not two.',
+      },
+    ],
+    outcome: [
+      'Login through the reverse proxy returns 200 with a Secure, HttpOnly cookie, and the reverse-proxy warning banner is gone from the page.',
+      'A 120,829,120-byte upload completed over the public path in 5.4 s at roughly 23 MB/s and was verified byte-for-byte on the destination disk — against a previous ceiling of 100 MB.',
+      'A foreign Origin still returns 403 and a wrong password still fails authentication, so removing the edge did not remove the protections.',
+      'An external vantage point returns the application itself rather than an identity page, confirming the record is genuinely DNS-only.',
+      'Collateral checked rather than assumed: after removing one of 24 edge routing rules, the public dashboard and the photo service both still responded correctly.',
+    ],
+    lessons:
+      'A ceiling enforced at the edge and a rejection produced by the origin present identically to the user, but they belong to different layers — the smallest failing request tells them apart. When an application derives policy from its own socket, every proxy in front of it is a lie it must be told explicitly, and changing a record type can quietly opt a hostname out of the automation that keeps it reachable.',
+  },
+
+  {
+    slug: 'capacity-waiting',
+    provenance: 'ai-assisted',
+    keywords: ['Oracle Cloud', 'Always Free', 'capacity retry', 'systemd', 'queueing'],
+    title: 'Queueing for a free ARM host that is allocated in seconds',
+    summary:
+      'Always Free ARM capacity is granted, not sold: when a host frees up it is taken almost immediately. Manual retrying cannot win that race, so the attempt is automated, instrumented, and left running until it either succeeds or the goal is dropped.',
+    metric: '2,657 polling cycles · 531 blind launch attempts · one attempt every 4 minutes · still OUT_OF_HOST_CAPACITY',
+    stack: ['Oracle Cloud', 'Python', 'systemd', 'REST APIs', 'status instrumentation'],
+    role: 'Sole engineer',
+    context:
+      'The estate is deliberately built on hardware we own plus genuinely free capacity — no paid VPS. The missing piece is a free-tier ARM host, which Oracle allocates from a limited pool per region and availability domain. Provisioning requests fail with "Out of host capacity" whether issued by hand or by script, and the interval between capacity appearing and being taken by someone else is measured in seconds.',
+    constraints: [
+      'The target has no budget attached to it, so waiting is the only available strategy — the variable that can be optimised is how often and how well the attempt is made.',
+      'Launch requests are API calls against a real account: an aggressive retry loop risks rate limiting for no gain.',
+      'The process runs unattended for days on a host that also runs the rest of the container estate, so it must not consume meaningful resources or die on a transient error.',
+      '"Still waiting" is indistinguishable from "broken" unless progress is recorded somewhere readable.',
+    ],
+    decisions: [
+      {
+        title: 'Poll the capacity report, launch only occasionally',
+        body:
+          'Most cycles read the provider own capacity report for the target domain rather than firing launch requests, and every fifth cycle makes a blind launch regardless — because a report can lag reality in both directions. That keeps request volume low while still taking the shots that actually matter.',
+      },
+      {
+        title: 'Rotate shapes instead of waiting on one',
+        body:
+          'Capacity is reported per shape family, so a cycle alternates between a mid-size ARM shape, a larger one and a small fallback. Refusing to pre-commit to a single shape means the first host that frees anywhere in the acceptable set can be claimed.',
+      },
+      {
+        title: 'Persist state so a restart loses nothing',
+        body:
+          'Counters, the last error and the last capacity reading are written to a status file on every cycle. The service has been restarted by maintenance since then and resumed with its history intact — attempts went from 30 to 531 and cycles from 333 to 2,657 over the intervening week, which is only knowable because the numbers survive.',
+      },
+      {
+        title: 'Fail soft, and record why',
+        body:
+          'A transient name-resolution failure while reaching the identity endpoint was written into the status file as the last error while the capacity result stayed authoritative, and the service kept running. A crash loop would have stopped the attempt entirely to report a network blip.',
+      },
+      {
+        title: 'Make "waiting" a measurable state',
+        body:
+          'The status file carries an explicit state, a timestamp, the per-domain capacity verdict and both counters. Progress is therefore reportable on demand instead of inferred from a log that may have rotated.',
+      },
+    ],
+    outcome: [
+      'Service enabled at boot and running continuously: 1 day 11 hours of uptime on the current process, one cycle roughly every four minutes.',
+      '2,657 cycles completed, 531 of them blind launch attempts, every one returning "Out of host capacity" for the target domain — the goal is unmet and stated as such rather than reported as progress.',
+      'Counters grew from 30 attempts / 333 cycles a week earlier to 531 / 2,657, demonstrating a steady attempt rate rather than a stalled process.',
+      'State is readable on demand from a single status file, so the current verdict takes one command instead of log archaeology.',
+      'The failure mode that would have stopped everything — a transient network error killing the loop — was absorbed and recorded instead.',
+    ],
+    lessons:
+      'When the resource is allocated in seconds, the only strategy that works is to be permanently in the queue — but an automated wait is only trustworthy if its progress is persisted and its failures are distinguishable from its silence. Capacity is a race, not a queue: there is no position to hold, only an attempt rate to maintain.',
+  },
 ];
 
 export const bySlug = Object.fromEntries(caseStudies.map((c) => [c.slug, c]));

@@ -14,86 +14,87 @@ export const caseStudies = [
     slug: 'edge-migration',
     provenance: 'ai-assisted',
     keywords: ['DNS', 'tunnel ingress', 'subnet migration', 'incident response'],
-    title: 'Migrating 20 public services across a subnet renumber',
+    title: 'Moving 20 public services across a subnet renumber',
     summary:
-      'A LAN renumber invalidated routing for every published hostname at once. DNS looked correct while every route was dead — finding the real failure layer took separating three independent config surfaces.',
+      'A subnet renumber left every published hostname unreachable at once. DNS looked correct the whole time, so finding the fault meant working out which layer was actually dead.',
     metric: '23 ingress rules repointed · estate fully verified after origin fixes',
-    stack: ['Cloudflare Tunnel', 'Zero Trust', 'DNS', 'Traefik', 'Linux'],
+    stack: ['DNS', 'Edge proxy', 'Tunnel ingress', 'Linux'],
     role: 'Sole engineer',
     context:
-      'A homelab serving roughly twenty self-hosted applications was renumbered from one private /24 to another. Every public hostname was published as a CNAME to a Cloudflare Tunnel, so the DNS zone itself stayed perfectly valid — which is precisely what made the outage confusing.',
+      'A homelab of about twenty self-hosted applications moved onto a different private subnet. Each public hostname is published through a tunnel, so the DNS records stayed valid, and that is exactly what made the outage confusing.',
     constraints: [
-      'No maintenance window — the services were in active daily use.',
-      'The tunnel ingress is managed remotely by Cloudflare; the local config file on the connector looked authoritative but was ignored.',
-      'A malformed ingress update replaces the entire route table for every hostname simultaneously.',
+      'No maintenance window, because the services were in daily use.',
+      'The ingress rules are held by the edge provider, so the local copy on the connector was stale and nobody was reading it.',
+      'One bad update replaces every route at once, for all hostnames together.',
     ],
     decisions: [
       {
-        title: 'Audit the routing layer, not the zone',
+        title: 'Check the origin addresses, not the records',
         body:
-          'A DNS audit came back clean, which was a false negative: every ingress rule carried a hardcoded origin address while every published record was a CNAME to the tunnel. The lesson was to sweep origin addresses, not record types.',
+          'The DNS audit came back clean and was a false negative. Every ingress rule still carried a hardcoded origin address from the old subnet.',
       },
       {
-        title: 'Snapshot before mutating',
+        title: 'Save a copy before changing anything',
         body:
-          'The full ingress array was exported to disk before any change. Because a PUT replaces all rules at once, a single bad edit can take down every hostname and the API will not say which rule was wrong.',
+          'The full rule list was exported first. A single bad edit can drop every hostname, and the API will not say which rule was wrong.',
       },
       {
         title: 'Reconcile in both directions',
         body:
-          'Leftover rules pointing at dead services and DNS records with no matching rule both present identically — as the catch-all 404. Each direction had to be enumerated separately to account for every hostname.',
+          'Rules pointing at dead services and records with no matching rule both show up as the same catch-all 404. Each direction was listed separately until every hostname was accounted for.',
       },
     ],
     outcome: [
-      'Ingress reduced from 24 to 23 rules, every origin repointed to the new subnet.',
-      '20 of 22 hostnames verified end-to-end on the first pass; the remaining two were origin service failures rather than routing failures, which confirmed the edge itself was correct. Both origins were repaired afterwards, taking the estate to fully verified.',
-      'Established a rule that a 502 means routing is fixed and the origin is down, while a 404 means no rule matched. That single distinction cut future diagnosis time significantly.',
+      'Ingress went from 24 rules to 23, with every origin repointed to the new subnet.',
+      '20 of 22 hostnames worked on the first pass. The other two had origin failures rather than routing failures, which showed the edge itself was correct.',
+      'Both origins were repaired afterwards, taking the estate to fully verified.',
+      'A 502 now means routing is fine and the origin is down, while a 404 means no rule matched. That distinction makes later faults quick to place.',
     ],
     lessons:
-      'A clean DNS audit is not evidence that routing works. When a layer reports success, verify the layer beneath it with a direct probe rather than trusting the status code.',
+      'A clean DNS audit only proves the records are right, not that traffic can reach anything. When one layer reports success, probe the layer beneath it directly instead of trusting a status code.',
   },
 
   {
     slug: 'database-recovery',
     provenance: 'ai-assisted',
     keywords: ['SQLite', 'data recovery', 'backup validation', 'integrity checking'],
-    title: 'Recovering a corrupt SQLite database — and knowing when not to',
+    title: 'Recovering a corrupt database, and knowing when not to',
     summary:
-      'A media manager began returning HTTP 500. The database was malformed, the most recent backups were also corrupt, and the automatic repair tool produced a file that passed integrity checks but silently destroyed data.',
+      'A media manager began returning 500s. The database was corrupt, the newest backups were corrupt too, and the usual repair tool produced a file that passed its checks while quietly destroying data.',
     metric: 'Recovered to integrity-ok with zero row loss',
-    stack: ['SQLite', 'Python', 'Windows services', 'Backup validation'],
+    stack: ['SQLite', 'Python', 'Backups', 'Integrity checks'],
     role: 'Sole engineer',
     context:
-      'An application returned HTTP 500 on its main listing endpoint. The underlying SQLite database reported corruption with truncated overflow chains in a specific table. Four backups existed, spanning three weeks.',
+      'An application returned HTTP 500 on its main listing page. The SQLite database underneath had truncated overflow chains in one table, and four backups existed covering three weeks.',
     constraints: [
       'The service was in daily use and needed to come back up.',
-      'Restoring a three-week-old backup risked silently losing recent changes.',
-      'The obvious repair tool is not data-preserving, and does not announce that.',
+      'Restoring a three-week-old backup would throw away recent changes.',
+      'The obvious repair tool is not data-preserving, and it does not say so.',
     ],
     decisions: [
       {
-        title: 'Validate every backup before choosing one',
+        title: 'Test every backup before choosing one',
         body:
-          'All four backups were integrity-checked rather than assuming the newest was good. Two were also corrupt — damage predated the most recent snapshots, so "restore last night" would have restored the fault.',
+          'All four backups were integrity-checked instead of assuming the newest was good. Two of them were corrupt as well, because the damage predated the last snapshots, so restoring last night would have restored the fault.',
       },
       {
-        title: 'Treat the repair output as suspect until diffed',
+        title: 'Treat the repair output as suspect until it is diffed',
         body:
-          'The recovery tool produced a database that passed integrity checks and had matching row counts. A column-level comparison revealed it had emptied two JSON columns and destroyed a path column in the corrupted cells. Integrity passing did not mean correct.',
+          'The repaired file passed integrity checks and had matching row counts. A column-level comparison showed two JSON columns emptied and a path column gone in the corrupted cells, so passing the check had not meant the data was correct.',
       },
       {
-        title: 'Restore the older clean copy, having proved it was complete',
+        title: 'Restore the older clean copy, once it was proved complete',
         body:
-          'Comparison showed the older backup and the live data were identical in row counts and paths for every table that mattered, so the "older" copy was not stale — it was simply the last clean one.',
+          'The older backup and the live database matched on row counts and paths for every table that mattered. The older copy was not stale, it was simply the last clean one.',
       },
     ],
     outcome: [
       'Service restored, integrity check clean, listing endpoint returning 200.',
-      'Verified the restore introduced no regression by comparing all three database versions for identical item and file counts.',
-      'Documented that two of the four backups must never be restored, so a future reader does not repeat the mistake.',
+      'All three database versions compared for identical item and file counts, so the restore introduced no regression.',
+      'Two of the four backups recorded as never restorable, so a future reader does not repeat the mistake.',
     ],
     lessons:
-      'A passing integrity check proves structural consistency, not data fidelity. Backups that are never validated are not backups.',
+      'A clean integrity check proves the structure holds, not that the data survived. A backup you have never opened and checked is a guess, not a backup.',
   },
 
   {
@@ -102,40 +103,40 @@ export const caseStudies = [
     keywords: ['DNS', 'VPN routing', 'latency', 'packet probing'],
     title: '400ms to 30ms: diagnosing DNS that looked correct',
     summary:
-      'Name resolution was slow and some hosts failed entirely. The configured resolvers were valid, publicly reachable, and completely useless from the affected machine — because a VPN was capturing the traffic.',
+      'Name resolution was slow and some names failed outright. The configured resolvers were valid and answered from other machines, and were still useless here, because a VPN was carrying the traffic.',
     metric: '~13x reduction in lookup latency · failure eliminated',
-    stack: ['DNS', 'WireGuard', 'Windows networking', 'Packet-level probing'],
+    stack: ['DNS', 'VPN routing', 'Windows networking', 'Packet probing'],
     role: 'Sole engineer',
     context:
-      'Lookups took roughly 400ms each and at least one hostname failed to resolve. The adapter was configured with the ISP resolvers, which respond normally from other machines on the same network.',
+      'Lookups took roughly 400ms each and one hostname would not resolve at all. The adapter used the ISP resolvers, which answer normally from other machines on the same network.',
     constraints: [
-      'The same resolver IPs worked perfectly from a different host on the same LAN, so "the DNS server is down" was the wrong conclusion.',
-      'Changing DNS risks cutting off the machine mid-diagnosis.',
+      'The same resolver addresses worked from a second host on the same LAN, so "the DNS server is down" was already ruled out.',
+      'Changing DNS part way through risks cutting the machine off entirely.',
     ],
     decisions: [
       {
-        title: 'Test from both vantage points before drawing a conclusion',
+        title: 'Test from both ends before drawing a conclusion',
         body:
-          'Raw DNS queries from the affected machine timed out on both UDP and TCP/53, while identical queries from the hypervisor returned NOERROR. The resolver was fine; the path to it was not.',
+          'Raw queries from the affected machine timed out on both UDP and TCP, while identical queries from the hypervisor returned NOERROR. The resolver was fine, the path to it was not.',
       },
       {
         title: 'Follow the route, not the config',
         body:
-          'A route lookup showed traffic to the ISP resolvers was being sent into the VPN tunnel, where it was dropped. The configured DNS was therefore dead whenever the VPN was connected, and the OS was silently falling back to the tunnel resolver after paying a timeout.',
+          'A route lookup showed traffic to those resolvers being sent into the VPN tunnel and dropped there. The configured DNS was dead whenever the VPN was up, and the machine fell back to the tunnel resolver after paying a timeout.',
       },
       {
         title: 'Measure the fix rather than assert it',
         body:
-          'After repointing to resolvers that are reachable in both network states, latency was measured inside a single process to avoid including shell startup cost — an easy way to misread a 30ms improvement as a 400ms non-event.',
+          'After repointing to resolvers reachable in both states, latency was measured inside a single process to keep shell startup out of the number. Otherwise a 30ms improvement reads as a 400ms non-event.',
       },
     ],
     outcome: [
-      'Lookup latency reduced from ~400ms to ~30ms, measured warm and cold.',
-      'The one hostname that still failed was confirmed not to exist at all — the test name was invalid, not the resolver.',
-      'Left a second host untouched after measuring it as already healthy, rather than changing things for consistency.',
+      'Lookup latency fell from about 400ms to about 30ms, measured warm and cold.',
+      'The one hostname that still failed turned out not to exist, so the test name was wrong rather than the resolver.',
+      'A second host was left untouched once it measured healthy, instead of being changed for consistency.',
     ],
     lessons:
-      'Configuration that is valid is not configuration that works. When the same setting behaves differently on two hosts, the difference is in the path — measure from the vantage point that matters.',
+      'A setting that is valid is not a setting that works. When the same configuration behaves differently on two machines the difference is in the path, so measure from the machine that is actually failing.',
   },
 
   {
@@ -144,132 +145,133 @@ export const caseStudies = [
     keywords: ['automation', 'VPN port forwarding', 'reliability', 'reconciliation'],
     title: 'A torrent pipeline that survives VPN reconnects',
     summary:
-      'Seeding requires an inbound port, and the VPN rotates that port on every reconnect. Keeping the client, the port mapping and the tracker status in agreement needed automation rather than discipline.',
+      'Seeding needs an inbound port, and the VPN hands out a new one on every reconnect. Keeping the client, the port mapping and the tracker in agreement turned out to be a job for a timer, not a checklist.',
     metric: 'Port re-synchronised automatically on every reconnect',
-    stack: ['ProtonVPN', 'Transmission', 'RPC automation', 'Python', 'Scheduled tasks'],
+    stack: ['VPN port forwarding', 'Torrent client', 'RPC automation', 'Scheduled tasks'],
     role: 'Sole engineer',
     context:
-      'Torrent traffic needs a reachable inbound port to maintain ratio on private trackers. The VPN client assigns a forwarded port that changes on reconnect, while the torrent client holds a static configuration.',
+      'Torrent traffic needs a reachable inbound port to hold ratio on private trackers. The VPN assigns a forwarded port that changes each time it reconnects, while the torrent client keeps a static setting.',
     constraints: [
-      'The torrent client must stay inside the VPN tunnel — split tunnelling it would leak the real address.',
-      'Manual port updates fail silently after a reconnect, producing gradual ratio decay rather than an obvious error.',
-      'The client has to run outside the agent session so it survives logoff.',
+      'The torrent client must stay inside the tunnel, because split tunnelling would leak the real address.',
+      'A missed manual update fails silently and shows up as slow ratio decay instead of an error.',
+      'The watcher has to run outside the login session so it survives logoff.',
     ],
     decisions: [
       {
-        title: 'Read the assigned port from the VPN client, not from configuration',
+        title: 'Read the port from the VPN, not from config',
         body:
-          'The authoritative port is recorded by the VPN client at connect time. A watcher polls that source and pushes changes to the torrent client over its RPC interface.',
+          'The VPN records the assigned port when it connects. A watcher polls that source and pushes any change into the torrent client over its RPC interface.',
       },
       {
-        title: 'Verify reachability, not just agreement',
+        title: 'Check reachability, not agreement',
         body:
-          'Setting the same port in both places does not prove the mapping works. A port test distinguishes "the client believes it is reachable" from "the tracker agrees", which are different failure modes.',
+          'The same number in both places does not prove the mapping works. A port test separates "the client thinks it is open" from "the tracker agrees", and those two fail differently.',
       },
       {
-        title: 'Separate seeding payload from library presentation',
+        title: 'Keep a single copy of the files',
         body:
-          'Seed data and library files share a single copy where possible, with hardlinks for presentation. Verification predicates on content, so a re-download to "fix" a path would destroy ratio for no benefit.',
+          'Seed data and library files share one copy where possible, joined with hardlinks for presentation. Because checks look at content, a re-download to fix a path would only burn ratio.',
       },
     ],
     outcome: [
-      'Port synchronisation runs on a one-minute timer and survives reconnects without intervention.',
-      'Tracker-reported connectivity restored after each reconnect instead of decaying overnight.',
-      'Established a rule that no file operation touches torrent payload without a client stop and an integrity snapshot first.',
+      'Port synchronisation runs on a one-minute timer and rides out reconnects with no intervention.',
+      'Tracker-reported connectivity comes back after each reconnect instead of decaying overnight.',
+      'No file operation touches torrent payload without stopping the client and taking an integrity snapshot first.',
     ],
     lessons:
-      'Any value that changes on its own schedule needs a reconciler, not a documented procedure. Documentation decays; a timer does not.',
+      'Any value that changes on its own schedule needs a reconciler rather than a written procedure. People miss the step, and the failure arrives as slow decay with nothing to alert you.',
   },
 
   {
     slug: 'media-stack',
     provenance: 'ai-assisted',
-    keywords: ['self-hosting', 'virtualisation', 'storage', 'observability'],
+    keywords: ['self-hosting', 'virtualisation', 'storage', 'monitoring'],
     title: 'Self-hosted media and photo stack on commodity hardware',
     summary:
-      'Photos, music broadcasting, remote desktop and dashboards, all served from a home rack with no cloud dependency — including the edge, the identity and the monitoring.',
+      'Photos, music broadcasting, remote desktop and dashboards, all served from a home rack with no monthly cloud bill, along with the edge, the identity and the monitoring.',
     metric: '28 containers · single-command recovery · zero monthly cloud spend',
-    stack: ['Proxmox', 'Docker', 'CIFS', 'Traefik', 'Cloudflare', 'Netdata', 'Uptime Kuma'],
+    stack: ['Virtualisation', 'Containers', 'Storage share', 'Monitoring'],
     role: 'Sole engineer',
     context:
-      'The goal was to replace paid cloud services with a self-hosted equivalent across photos, media, streaming, remote access and monitoring, while keeping the whole estate recoverable by one person.',
+      'The goal was to replace paid cloud services with a self-hosted equivalent across photos, media, streaming, remote access and monitoring. The whole estate also had to stay recoverable by one person, on commodity hardware running a single hypervisor.',
     constraints: [
-      'Commodity hardware with a single hypervisor — no redundancy at the physical layer.',
-      'Storage shared to containers over the network, so mount ordering affects service startup.',
-      'Public access needed without exposing the home IP.',
+      'One machine behind a single hypervisor, so there is no redundancy at the physical layer.',
+      'Storage is shared to the containers over the network, so mount order decides which services start.',
+      'Public access was needed without exposing the home address.',
     ],
     decisions: [
       {
-        title: 'Push the edge to the provider, keep the data local',
+        title: 'Put the edge at the provider, keep the data local',
         body:
-          'All public hostnames terminate at a hosted tunnel, so no inbound ports are open and the home address is never published. The origin remains entirely local.',
+          'Every public hostname terminates at a hosted tunnel, so no inbound ports are open and the home address is never published. The services themselves stay on the local host and answer only through that tunnel.',
       },
       {
-        title: 'Make startup ordering explicit',
+        title: 'Make startup order explicit',
         body:
-          'Remote storage mounts must exist before dependent containers start. Discovering this through failed restarts produced a documented dependency order rather than a hopeful `docker start -a`.',
+          'Remote storage mounts have to exist before the containers that use them. A few failed restarts turned that into a written dependency order instead of hoping the timing works out.',
       },
       {
-        title: 'Monitor the whole path, not just the process',
+        title: 'Watch the path, not the process',
         body:
-          'A container can be running and still be unusable. Health checks are modelled on the user-visible path so a green process does not mask a broken service.',
+          'A container can be running and still be useless to anyone trying to use it. Health checks are written against what a user actually sees, so a green process cannot hide a broken service.',
       },
     ],
     outcome: [
       'Photos, broadcast audio, remote desktop, dashboards and monitoring all served from one host.',
-      'No inbound firewall ports; every published service reachable through the tunnel only.',
-      'Full recovery demonstrated after hardware failure, including database repair and re-mounting remote storage.',
+      'No inbound firewall ports, with every published service reachable through the tunnel only.',
+      '28 containers brought back from a single command.',
+      'Full recovery proven after a hardware failure, including database repair and remounting remote storage.',
     ],
     lessons:
-      'Self-hosting is an operations discipline, not a hosting choice. The value is in the recovery path, not the uptime chart.',
+      'Self-hosting is an operations job, not a hosting choice. What you own is the recovery path you can walk when the hardware is down, and the uptime chart only describes what already happened.',
   },
   {
     slug: 'gated-delivery',
     provenance: 'ai-assisted',
-    keywords: ['identity', 'Cloudflare Access', 'JWT verification', 'edge security'],
-    title: 'Delivering a private file through a public page, without storing it',
+    keywords: ['identity', 'access control', 'token verification', 'client testing'],
+    title: 'Delivering a private file through a public page',
     summary:
-      'A credential bundle needed to be downloadable by exactly one person from a dashboard that is deliberately public. The obvious gate — protect the tile — was the wrong one, because a control that only appears after a successful request vanishes precisely when that request fails.',
+      'One tile on a public dashboard had to hand a credential bundle to a single person. Protecting the tile looked obvious and was wrong, because a control that appears only after a successful request disappears exactly when that request fails.',
     metric: 'File never leaves the origin · anonymous redirect, authorised download · 12 client-side assertions',
-    stack: ['Cloudflare Access', 'Workers', 'JWT / JWKS verification', 'Node.js', 'jsdom'],
+    stack: ['Cloudflare Access', 'Workers', 'JWT verification', 'Node.js'],
     role: 'Sole engineer',
     context:
-      'A self-hosted dashboard is public on purpose: it is a landing page, not a secret. One tile among many needed to hand a credential bundle to its owner alone. The bundle had to stay on the local origin, and the estate publishes nothing directly — every public hostname terminates at a hosted edge.',
+      'A self-hosted dashboard is public on purpose: it is a landing page, not a secret. One tile among many needed to give a credential bundle to its owner alone, and the bundle had to stay on the local origin.',
     constraints: [
-      'The dashboard had to stay public. Protecting the whole hostname would have closed a door that was intentionally open.',
-      'A protected subresource cannot prompt for authentication: an asynchronous request carries no navigation, so a session can never be established through it.',
-      'The tile had to remain visible even when the identity check fails — which is the one case where it is most likely to fail.',
-      'An earlier version cached the file at the edge for convenience, which put the data somewhere other than the origin that owns it.',
+      'The dashboard had to stay public, so protecting the whole hostname was not an option.',
+      'A protected subresource cannot prompt for login, because an asynchronous request carries no navigation and no session can start through it.',
+      'The tile had to stay visible when the identity check fails, which is the case where it matters most.',
+      'An earlier version cached the file at the edge, putting the data somewhere other than the origin that owns it.',
     ],
     decisions: [
       {
         title: 'Gate the click, not the page',
         body:
-          'Rendering the control unconditionally and gating the navigation inverted the failure mode. If the identity check fails, the tile is still there and the click resolves it. If it succeeded first, a broken request would have removed the only thing the user needed.',
+          'The control is rendered every time and the navigation is what gets checked. If the identity check fails, the tile is still there and the click resolves it.',
       },
       {
-        title: 'Keep identity at the edge and data on the origin',
+        title: 'Keep identity at the edge, data on the origin',
         body:
-          'The access policy and the session live at the provider; the file is served by a small process bound to the local network that answers one route and nothing else. The provider authenticates, the origin authorises, and neither holds the other piece.',
+          'The provider handles login and holds the session. A small local process serves one route and nothing else, so neither side holds the other half.',
       },
       {
         title: 'Verify the assertion instead of trusting the header',
         body:
-          'The edge injects a signed assertion on an authorised request, but a header is still a string. The verifying function re-derives trust: it fetches the published signing keys, checks the signature, checks the audience claim and checks expiry. A token minted for a different application on the same account is rejected rather than honoured.',
+          'A signed header is still just a string. The handler fetches the published signing keys and checks the signature, the audience and the expiry, so a token minted for another application is rejected.',
       },
       {
         title: 'Test the client without a browser',
         body:
-          'The failure being fixed was invisible from the server side: a healthy container, a 200 response, a missing control. A DOM harness runs the deployed script against the deployed markup and asserts the control exists, is first in its list, has handlers, carries the correct icon, and does not duplicate when run twice.',
+          'The fault was invisible from the server side: a healthy process, a 200 response, no control. A DOM harness runs the deployed script against the deployed markup and asserts the control exists, sits first in its list, has handlers, and does not duplicate on a second run.',
       },
     ],
     outcome: [
-      'Anonymous requests redirected to the identity provider; authorised requests returned the file byte-identical to the origin copy, with no edge-side copy retained.',
-      'Malformed, expired, tampered and wrong-audience tokens each rejected in isolation rather than as a group.',
-      'The dashboard remained public and unauthenticated throughout, and the tile now renders before any network call is attempted.',
+      'Anonymous requests were redirected; authorised requests returned the file byte-identical to the origin copy, with no copy kept at the edge.',
+      'Malformed, expired, tampered and wrong-audience tokens were each rejected on their own.',
+      'The dashboard stayed public and unauthenticated, and the tile now renders before any network call is attempted.',
     ],
     lessons:
-      'A control that only appears after a successful request is absent exactly when that request fails. Render the affordance first and let the click do the work.',
+      'A control that only appears after a successful request is missing exactly when that request fails. Render the affordance first and let the click do the work.',
   },
 
   {
@@ -278,46 +280,46 @@ export const caseStudies = [
     keywords: ['infrastructure as code', 'version control', 'secret hygiene', 'recovery'],
     title: 'An estate that runs but cannot be rebuilt',
     summary:
-      'Containers were declarative and survived anything. Everything else — edge applications, routes, policies, DNS and one database fix — existed only as the side effect of an API call or a manual edit. Nothing could be reconstructed, only remembered.',
+      'Containers were declarative and survived anything. Everything else, including edge applications, routes, policies, DNS and one database fix, existed only as the side effect of an API call or a manual edit. Nothing could be reconstructed, only remembered.',
     metric: '26 files versioned · 10 edge objects exported · nightly reconciliation, verified',
-    stack: ['Git', 'Infrastructure as code', 'Cloudflare API', 'PowerShell', 'Docker Compose'],
+    stack: ['Git', 'Infrastructure as code', 'Cloudflare API', 'Docker Compose'],
     role: 'Sole engineer',
     context:
-      'The estate was stable: containers rebuilt cleanly, upgrades were uneventful, and reboots changed nothing. That stability was masking a different problem. Only one layer was described by a file, and the rest of the configuration had no representation anywhere except the running system.',
+      'The estate was stable: containers rebuilt cleanly, upgrades were uneventful, reboots changed nothing. That stability hid the problem. Only one layer was described by a file, and the rest of the configuration existed nowhere except the running system.',
     constraints: [
       'The estate was in daily use, so a reproducibility exercise could not become an outage.',
-      'Configuration and secrets were entangled: container definitions carried database passwords in plain environment blocks.',
-      'There was no version history for any of it, and therefore no baseline to diff against.',
+      'Configuration and secrets were entangled, with database passwords sitting in plain environment blocks.',
+      'Nothing had version history, so there was no baseline to diff against.',
     ],
     decisions: [
       {
         title: 'Separate rebuilt from recoverable',
         body:
-          'Docker Compose is genuinely declarative: the file states the desired end state and a command converges on it, which is why containers survived upgrades. The edge was imperative: objects were created once and thereafter merely existed. A snapshot of those objects is recoverable but not reproducible, and presenting it as infrastructure as code would have been dishonest.',
+          'Container definitions state a desired end state and a command converges on it, which is why they survived upgrades. The edge was imperative: objects were created once and then merely existed, so a snapshot of them is recoverable but not reproducible.',
       },
       {
         title: 'Version what is safe, export what is not',
         body:
-          'A first attempt to version a working scripts directory staged hundreds of files including credential material. That was rejected rather than reasoned with. The scope was narrowed to the artefacts that matter, and both commits were gated on a scan that fails if any known secret value appears anywhere in the staged tree.',
+          'A first attempt staged hundreds of files, including credential material, and was rejected instead of reasoned with. Scope was narrowed to the artefacts that matter, and both commits are gated on a scan that fails if a known secret appears in the staged tree.',
       },
       {
-        title: 'Automate the refresh, then prove the automation',
+        title: 'Automate the refresh, then prove it ran',
         body:
-          'A scheduled job pulls the live configuration, re-exports the edge state and commits only when something changed. The task was triggered immediately, its exit code checked and the resulting commit confirmed — because a scheduler reporting success and a job that actually ran are different claims.',
+          'A scheduled job pulls the live configuration, re-exports the edge state and commits only when something changed. The job was triggered at once and its exit code and resulting commit were checked, because a scheduler reporting success and a job that actually ran are different claims.',
       },
       {
         title: 'Send the state somewhere it can survive',
         body:
-          'Definitions that cannot be versioned safely were archived to a separate device with retention, and the named volumes were classified as data rather than configuration — which changes what protects them.',
+          'Definitions that cannot be versioned safely are archived to a separate device with retention. Named volumes were classified as data rather than configuration, which changes what protects them.',
       },
     ],
     outcome: [
       'Twenty-six files under version control, including the edge export of applications, policies, routes, tunnel ingress, DNS and rulesets.',
       'A nightly task with a secret-scanning commit gate, verified end to end rather than assumed.',
-      'The remaining gaps documented inside the repository itself: a hand-created database table, a repository that is still single-copy, and the absence of a scheduled hypervisor backup.',
+      'Remaining gaps written down inside the repository itself: a hand-created database table, a single-copy repository, no scheduled hypervisor backup.',
     ],
     lessons:
-      'If a fix exists only inside a running system, it is a rumour. Documentation is proven by whether it can rebuild the thing, not by whether it describes it.',
+      'A fix that exists only inside a running system is a rumour. Documentation counts when it can rebuild the thing, not when it describes it.',
   },
 
   {
@@ -326,46 +328,46 @@ export const caseStudies = [
     keywords: ['observability', 'false success', 'log analysis', 'root cause'],
     title: 'Three services that reported success while broken',
     summary:
-      'A reverse proxy emitted roughly ten thousand errors a day, a dashboard returned HTTP 200 with nothing on it, and a mail queue held thousands of messages. Each system was healthy by its own measure. None of them was usable.',
+      'A reverse proxy emitted roughly ten thousand errors a day, a dashboard returned HTTP 200 with nothing on it, and a mail queue held thousands of messages. Each system was healthy by its own measure, and none of them was usable.',
     metric: '~10,000 errors/day to zero · empty page to fully populated · queue cause found',
-    stack: ['Traefik', 'Docker', 'SQLite', 'Postfix', 'Log analysis'],
+    stack: ['Traefik', 'SQLite', 'Postfix', 'Log analysis'],
     role: 'Sole engineer',
     context:
-      'Three unrelated services on one estate were failing in ways their own reporting described as success. The proxy was serving traffic correctly while filling its log with failures. The dashboard was returning a valid empty page rather than an error. The mail server was accepting messages and never delivering them.',
+      'Three unrelated services on one estate were failing in ways their own reporting described as success. The proxy served traffic correctly while filling its log with failures. The dashboard returned a valid empty page, and the mail server accepted messages it never delivered.',
     constraints: [
-      'Every service passed the check that was already watching it, so the monitoring could not be the source of the diagnosis.',
-      'Each fault sat in a different layer from the symptom, which is what made them persist.',
-      'Restarting the affected services cleared nothing, so the fixes had to be understood before they were applied.',
+      'Every service passed the check already watching it, so that monitoring could not produce the diagnosis.',
+      'Each fault sat in a different layer from its symptom, which is why they persisted.',
+      'Restarting the affected services cleared nothing.',
     ],
     decisions: [
       {
         title: 'Measure the path, not the process',
         body:
-          'A running container and a 200 response were both true and both useless. Health was redefined against the user-visible path — does the page contain what it should, does the mail leave the queue, is the error rate falling — so a green indicator could no longer mask a broken service.',
+          'A running container and a 200 response were both true and both useless. Health was redefined against the path a user takes: does the page hold what it should, does mail leave the queue, is the error rate falling.',
       },
       {
-        title: 'Treat "the migrations ran" as a claim, not evidence',
+        title: 'Treat "the migrations ran" as a claim',
         body:
-          'The dashboard rendered nothing because a table the interface filters on did not exist, while the migration log reported that its migration had run. Verifying the schema directly, rather than the bookkeeping about the schema, found it in minutes. The same instinct applied to a repair tool whose output passed an integrity check while having destroyed two columns.',
+          'The dashboard rendered nothing because a table it filters on did not exist, while the migration log said the migration had run. Checking the schema itself rather than the bookkeeping about it found the fault in minutes.',
       },
       {
-        title: 'Fix the layer the fault is in, not the layer the symptom is in',
+        title: 'Fix the layer the fault is in',
         body:
-          'The mail failure looked like DNS and was — but not in the file being edited. A chrooted daemon reads its own copy of the resolver configuration, which still pointed at an address that no longer existed. Editing the system copy had no effect, which read as a failed fix rather than a misplaced one.',
+          'The mail failure looked like DNS, but the confined daemon reads its own copy of the resolver configuration, which still named an address that no longer existed. Editing the system copy had no effect and read as a failed fix rather than a misplaced one.',
       },
       {
         title: 'Change the version, not the workaround',
         body:
-          'The proxy was negotiating an API version its daemon no longer accepted. Pinning the version with an unsupported flag killed the container outright; the correct answer was upgrading to a release that negotiates natively, after which the errors stopped without further configuration.',
+          'The proxy was negotiating an API version its daemon no longer accepted. Pinning it with an unsupported flag killed the container, so the answer was a release that negotiates natively, after which the errors stopped with no further configuration.',
       },
     ],
     outcome: [
-      'Proxy error volume fell from roughly ten thousand a day to zero, measured over a soak period rather than a single moment.',
-      'The dashboard returned every pinned item instead of an empty page, and the missing table was recorded so a restored database does not repeat the fault.',
-      'The mail queue drained — and the reason delivery was impossible in the first place, a blocklisted public address, was identified before further effort went into a fix that could never have worked.',
+      'Proxy errors fell from roughly ten thousand a day to zero, measured over a soak period rather than one moment.',
+      'The dashboard returned every pinned item, and the missing table was recorded so a restored database does not repeat the fault.',
+      'The mail queue drained, and the underlying reason, a blocklisted public address, was found before more effort went into a fix that could never work.',
     ],
     lessons:
-      'A green check proves that the check ran, not that the thing works. Instrument the path the user takes, and always verify the layer beneath the one reporting success.',
+      'A green check proves the check ran, not that the thing works. Watch the path a user takes, and verify the layer beneath the one reporting success.',
   },
   {
     slug: 'wrong-diagnosis',
@@ -373,60 +375,60 @@ export const caseStudies = [
     keywords: ['debugging', 'Docker volumes', 'API contracts', 'retracting a diagnosis'],
     title: 'The image was fine: overturning a confident diagnosis',
     summary:
-      'A service refused to start and the container image was blamed. The image was intact. Finding the real cause meant inspecting the thing that had already been condemned, rather than accepting a plausible story about it.',
+      'A service refused to start and the container image took the blame. The image was intact. The real cause only surfaced once the thing already condemned was inspected instead of trusted.',
     metric: 'Restored on a fresh volume · 28 containers visible · root cause: data directory, not image',
-    stack: ['Portainer', 'Docker volumes', 'REST APIs', 'bcrypt', 'SQLite'],
+    stack: ['Container platform', 'Docker volumes', 'REST APIs', 'SQLite'],
     role: 'Sole engineer',
     context:
-      'A container management interface stopped working after a storage change. It was the second failure of its kind, and the first explanation — that the released image was defective — had already been accepted and repeated. That explanation was wrong, and it was actively blocking the fix.',
+      'A container management interface stopped working after a storage change. It was the second failure of its kind, and the first explanation, that the released image was defective, had already been accepted and repeated. That explanation was wrong and was blocking the fix.',
     constraints: [
-      'The platform was the most convenient way to see the whole container estate, so losing it also removed the tool that would normally be used to diagnose it.',
-      'Replacing the data volume was the likely fix, and that volume is also where the administrator account lived, so it could not be discarded without an archive and a route back.',
-      'Account recreation requires a one-time token that exists only in the container log during its first start.',
+      'The platform was the easiest way to see the whole container estate, so losing it also removed the usual diagnostic tool.',
+      'Replacing the data volume was the likely fix, and the administrator account lived in that volume, so it needed an archive and a way back.',
+      'Account recreation needs a one-time token that appears only in the container log at first start.',
     ],
     decisions: [
       {
-        title: 'Test the claim about the image, not the service',
+        title: 'Test the claim about the image',
         body:
-          'The image was inspected directly. It contained a working binary and stored password hashes in a modern, well-formed format. A defective image would not produce a valid credential store. The hypothesis collapsed in a single command, after it had stood unchallenged for some time.',
+          'The image was inspected directly. It held a working binary and password hashes in a modern, well-formed format, so a defective image would not produce a valid credential store, and the hypothesis fell in one command.',
       },
       {
         title: 'Treat the data directory as the suspect',
         body:
-          'The remaining state lived in a named volume rather than in the image. Archiving that volume and rebuilding from the declaration file produced a working service immediately — which is the definition of a data fault rather than a code fault.',
+          'The remaining state lived in a named volume rather than in the image. Archiving that volume and rebuilding from the declaration file produced a working service at once, which is a data fault rather than a code fault.',
       },
       {
         title: 'Initialise through the supported path',
         body:
-          'First start emits a setup token, and the initialisation endpoint rejects any request without it. The documented flow was used rather than inserting rows by hand, so the resulting database is one the application itself created and understands.',
+          'First start emits a setup token and the initialisation endpoint rejects any request without it. The documented flow was used instead of inserting rows by hand, so the database is one the application created itself.',
       },
       {
         title: 'Read the API contract before assuming it',
         body:
-          'The endpoint that registers a container host accepts multipart form data. Sending JSON returned a validation error about a missing name, which reads as a schema problem rather than a content-type problem — and cost a round of debugging the wrong thing.',
+          'The endpoint that registers a container host accepts multipart form data. Sending JSON returned an error about a missing name, which reads as a schema problem rather than a content-type problem, and cost a round of debugging the wrong thing.',
       },
     ],
     outcome: [
       'Service restored on a freshly created volume, with the previous one archived to a tarball first.',
-      'Administrator account reinitialised through the supported endpoint, then the full container estate enumerated to confirm visibility rather than assuming it.',
-      'The earlier conclusion explicitly retracted and recorded, so the next reader does not repeat the investigation.',
+      'The administrator account was rebuilt through the supported endpoint, then the full container estate was enumerated to confirm visibility.',
+      'The earlier conclusion was retracted in writing, so the next reader does not repeat the investigation.',
     ],
     lessons:
-      'A plausible diagnosis is not a verified one. When a conclusion is blocking progress, test the conclusion itself — here the cheapest test was reading what was actually inside the thing that had already been blamed.',
+      'A plausible diagnosis is not a verified one. When a conclusion is blocking progress, test the conclusion itself, and the cheapest test is usually looking inside the thing you have already blamed.',
   },
 
   {
     slug: 'mail-queue',
     provenance: 'ai-assisted',
-    keywords: ['SMTP', 'chroot', 'deliverability', 'root cause'],
+    keywords: ['SMTP', 'DNS', 'deliverability', 'root cause'],
     title: 'Mail queued for weeks, for two unrelated reasons',
     summary:
-      'A mail server accumulated thousands of deferred messages while name resolution tested perfectly from every other vantage point. Fixing that exposed a second, larger problem: the public address was blocklisted, so delivery could never have worked at all.',
+      'A mail server held thousands of deferred messages while name resolution tested perfectly from everywhere else. Fixing that exposed a second problem: the public address was blocklisted, so delivery could never have worked at all.',
     metric: '3,500+ queued messages resolved · confined resolver found · delivery proven impossible in principle',
-    stack: ['Postfix', 'chroot', 'DNS', 'SMTP', 'Log analysis'],
+    stack: ['Postfix', 'DNS', 'SMTP', 'Log analysis'],
     role: 'Sole engineer',
     context:
-      'A host stopped delivering notification mail. Messages accumulated in the queue rather than failing, so the sending side believed everything was working. Standard resolution tests passed, which pointed the investigation away from DNS entirely.',
+      'A host stopped delivering notification mail. Messages accumulated in the queue instead of failing, so the sending side believed everything was working. Standard resolution tests passed, which pointed the investigation away from DNS entirely.',
     constraints: [
       'The queue was being cleared periodically, which removed the evidence and the symptom at the same time.',
       'External resolution tested correctly from the hypervisor and from public resolvers, so "the DNS server is broken" was demonstrably false.',
@@ -434,30 +436,30 @@ export const caseStudies = [
     ],
     decisions: [
       {
-        title: 'Reproduce the failure from the daemon, not from the shell',
+        title: 'Reproduce the failure from the daemon, not the shell',
         body:
-          'The daemon runs confined and therefore reads its own copy of the resolver configuration rather than the live one. That copy still named a gateway that no longer existed after a network renumber. Every shell test was testing a different file, which is why the results disagreed with the daemon.',
+          'The daemon runs confined and reads its own copy of the resolver configuration, which still named a gateway that no longer existed after a network renumber. Every shell test was reading a different file, so the results disagreed with the daemon.',
       },
       {
         title: 'Clear the queue, then read what it was saying',
         body:
-          'Purging addresses the symptom, so the deferred messages were inspected instead. Once outbound connectivity worked, they carried the actual remote response: a reputation rejection naming the public address of the connection.',
+          'Purging hides the symptom, so the deferred messages were inspected instead. Once outbound connectivity worked, they carried the real remote response: a reputation rejection naming the public address of the connection.',
       },
       {
         title: 'Distinguish sending from delivering',
         body:
-          'A message leaving the local queue looks identical to success in most dashboards. Only the remote server response separates them, and this one was a permanent rejection for reputation rather than a transient failure worth retrying.',
+          'A message leaving the local queue looks like success in most dashboards. Only the remote server response separates the two, and this one was a permanent rejection for reputation rather than a transient failure worth retrying.',
       },
       {
         title: 'Stop work on a path that cannot succeed',
         body:
-          'With the reason established, the requirement changed from a configuration fix to an authenticated relay. Continuing to tune the local mail server would have produced a permanently empty queue and zero delivered messages.',
+          'With the reason established, the requirement changed from a configuration fix to an authenticated relay. Tuning the local mail server further would have produced an empty queue and zero delivered messages.',
       },
     ],
     outcome: [
       'Deferred queue drained, with the resolver fault corrected at its source rather than worked around.',
-      'Every future network renumber recorded as requiring the confined resolver copy to be resynchronised — the fix that had been invisible was made visible.',
-      'Direct delivery established as impossible from that public address, which converted an open-ended bug into a specific, priced decision about relaying.',
+      'Every future network renumber now requires the confined resolver copy to be resynchronised, so the fix that was invisible stays visible.',
+      'Direct delivery established as impossible from that public address, which turned an open-ended bug into a decision about relaying.',
     ],
     lessons:
       'A confined process can read a different copy of the configuration than the one being edited. And queued is not sent: the only proof of delivery is what the remote server says.',
@@ -494,7 +496,7 @@ export const caseStudies = [
       {
         title: 'Tell the app about the proxy',
         body:
-          'Just allowing the correct origin would have hidden the error while the app went on treating the proxy as the visitor, which quietly turns off recent uploads and delete. Naming the proxy, the client IP header and the scheme fixed the cause instead.',
+          'Allowing the correct origin would only have hidden the error while the app went on treating the proxy as the visitor, which quietly turns off recent uploads and delete. Naming the proxy, the client IP header and the scheme fixed the cause instead.',
       },
       {
         title: 'Accept what we lose',
@@ -509,7 +511,7 @@ export const caseStudies = [
       'One routing rule out of 24 was removed and the other sites were checked afterwards: dashboard and photo library both fine.',
     ],
     lessons:
-      'An error that names one layer is not proof the fault is there. The smallest failing request showed which layer actually owned each problem, and that was the difference between fixing it and hiding it. Two smaller traps are worth keeping: an app that decides what is allowed from its own connection has to be told about every proxy in front of it, and changing a record from CNAME to A quietly dropped it out of the DNS updater, which only updates A records.',
+      'An error that names one layer is not proof the fault is there: the smallest failing request showed which layer actually owned each problem, and that was the difference between fixing it and hiding it. Two smaller traps are worth keeping. An app that decides what is allowed from its own connection has to be told about every proxy in front of it, and changing a record from CNAME to A quietly dropped it out of the DNS updater, which only updates A records.',
   },
 
   {
